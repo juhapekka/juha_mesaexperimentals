@@ -46,6 +46,7 @@ XCBDRI2_REQUIRED=1.8
 XCBGLX_REQUIRED=1.8.1
 XSHMFENCE_REQUIRED=1.1
 XVMC_REQUIRED=1.0.6
+LIBPIXMAN_REQUIRED=0.30.2
 
 dnl Check for progs
 AC_PROG_CPP
@@ -720,6 +721,14 @@ AC_ARG_ENABLE([gallium-tests],
         [Enable optional Gallium tests) @<:@default=disabled@:>@])],
     [enable_gallium_tests="$enableval"],
     [enable_gallium_tests=no])
+
+AC_ARG_ENABLE([pixman],
+    [AS_HELP_STRING([--enable-pixman],
+        [Enable Pixman library to be used for texture format conversion
+         fast paths
+         @<:@default=disable@:>@])],
+    [enable_pixman="$enableval"],
+    [enable_pixman=no])
 
 # Option for Gallium drivers
 
@@ -1504,6 +1513,21 @@ fi
 AM_CONDITIONAL(HAVE_CLOVER, test "x$enable_opencl" = xyes)
 AM_CONDITIONAL(HAVE_CLOVER_ICD, test "x$enable_opencl_icd" = xyes)
 AC_SUBST([OPENCL_LIBNAME])
+
+#Pixman
+if test "x$enable_pixman" = xyes; then
+    PKG_CHECK_MODULES([PIXMAN], [pixman-1], [have_libpixman=yes],
+                        [have_libpixman=no])
+
+    CFLAGS="$CFLAGS $PIXMAN_CFLAGS"
+    GL_LIB_DEPS="$GL_LIB_DEPS $PIXMAN_LIBS"
+    EGL_LIB_DEPS="$EGL_LIB_DEPS $PIXMAN_LIBS"
+
+    if test "x$have_libpixman" = "xyes"; then
+        DEFINES="$DEFINES -DHAVE_PIXMAN"
+    fi
+fi
+
 
 dnl
 dnl Gallium configuration
@@ -2323,6 +2347,12 @@ else
     echo "        Gallium:         no"
 fi
 
+echo ""
+if test "x$enable_pixman" = xyes; then
+    echo "        Pixman:          yes"
+else
+    echo "        Pixman:          no"
+fi
 
 dnl Libraries
 echo ""
