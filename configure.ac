@@ -38,6 +38,7 @@ DRI3PROTO_REQUIRED=1.0
 PRESENTPROTO_REQUIRED=1.0
 LIBUDEV_REQUIRED=151
 GLPROTO_REQUIRED=1.4.14
+LIBPIXMAN_REQUIRED=0.0.0
 
 dnl Check for progs
 AC_PROG_CPP
@@ -634,6 +635,12 @@ AC_ARG_ENABLE([gallium-tests],
     [enable_gallium_tests="$enableval"],
     [enable_gallium_tests=no])
 
+AC_ARG_ENABLE([pixman],
+    [AS_HELP_STRING([--enable-pixman],
+        [Enable Pixman) @<:@default=disable@:>@])],
+    [enable_pixman="$enableval"],
+    [enable_pixman=no])
+
 # Option for Gallium drivers
 
 # Keep this in sync with the --with-gallium-drivers help string default value
@@ -866,6 +873,25 @@ xyesno)
     GL_PC_LIB_PRIV="-lm $PTHREAD_LIBS $DLOPEN_LIBS"
     ;;
 esac
+
+#Pixman
+if test "x$enable_pixman" = xyes; then
+    PKG_CHECK_MODULES([PIXMAN], [pixman-1], [have_libpixman=yes],
+                        [have_libpixman=no])
+
+    CFLAGS="$CFLAGS $PIXMAN_CFLAGS"
+    LIBS="$LIBS $PIXMAN_LIBS"
+
+    if test "x$have_libpixman" = "xyes"; then
+        DEFINES="$DEFINES -DHAVE_PIXMAN"
+    fi
+
+    AC_CHECK_HEADERS([pixman.h],
+	    [found_pixman_header=yes; break;])
+
+    AS_IF([test "x$found_pixman_header" != "xyes"],
+        [AC_MSG_ERROR([Unable to find pixman.h])])
+fi
 
 # This is outside the case (above) so that it is invoked even for non-GLX
 # builds.
@@ -2192,6 +2218,12 @@ else
     echo "        Gallium:         no"
 fi
 
+echo ""
+if test "x$enable_pixman" = xyes; then
+    echo "        Pixman:          yes"
+else
+    echo "        Pixman:          no"
+fi
 
 dnl Libraries
 echo ""
