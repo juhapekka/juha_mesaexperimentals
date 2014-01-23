@@ -1394,7 +1394,7 @@ _mesa_texstore_argb8888(TEXSTORE_PARAMS)
 	    baseInternalFormat == GL_RGBA &&
             srcType == GL_UNSIGNED_BYTE) {
       /* same as above case, but src data has alpha too */
-      GLint img, row, col;
+      GLint img;
       /* For some reason, streaming copies to write-combined regions
        * are extremely sensitive to the characteristics of how the
        * source data is retrieved.  By reordering the source reads to
@@ -1407,6 +1407,14 @@ _mesa_texstore_argb8888(TEXSTORE_PARAMS)
          GLubyte *srcRow = (GLubyte *) _mesa_image_address(dims, srcPacking,
                   srcAddr, srcWidth, srcHeight, srcFormat, srcType, img, 0, 0);
          GLubyte *dstRow = dstSlices[img];
+#ifdef HAVE_PIXMAN
+         return pixman_texture_conversion(PIXMAN_a8r8g8b8, (uint32_t *)srcRow,
+                                          srcRowStride, srcWidth, srcHeight,
+                                          PIXMAN_a8b8g8r8, (uint32_t *)dstRow,
+                                          dstRowStride);
+#else
+         GLint row, col;
+
          for (row = 0; row < srcHeight; row++) {
             GLuint *d4 = (GLuint *) dstRow;
             for (col = 0; col < srcWidth; col++) {
@@ -1418,6 +1426,7 @@ _mesa_texstore_argb8888(TEXSTORE_PARAMS)
             dstRow += dstRowStride;
             srcRow += srcRowStride;
          }
+#endif /* HAVE_PIXMAN */
       }
    }
    else if (!ctx->_ImageTransferState &&
