@@ -1491,13 +1491,21 @@ _mesa_texstore_rgb888(TEXSTORE_PARAMS)
        srcFormat == GL_RGBA &&
        srcType == GL_UNSIGNED_BYTE) {
       /* extract RGB from RGBA */
-      GLint img, row, col;
+      GLint img;
       for (img = 0; img < srcDepth; img++) {
          const GLint srcRowStride =
             _mesa_image_row_stride(srcPacking, srcWidth, srcFormat, srcType);
          GLubyte *srcRow = (GLubyte *) _mesa_image_address(dims, srcPacking,
                   srcAddr, srcWidth, srcHeight, srcFormat, srcType, img, 0, 0);
          GLubyte *dstRow = dstSlices[img];
+#ifdef HAVE_PIXMAN
+         return pixman_texture_conversion(PIXMAN_a8r8g8b8, (uint32_t *)srcRow,
+                                          srcRowStride, srcWidth, srcHeight,
+                                          PIXMAN_r8g8b8, (uint32_t *)dstRow,
+                                          dstRowStride);
+#else
+         GLint row, col;
+
          for (row = 0; row < srcHeight; row++) {
             for (col = 0; col < srcWidth; col++) {
                dstRow[col * 3 + 0] = srcRow[col * 4 + BCOMP];
@@ -1507,6 +1515,7 @@ _mesa_texstore_rgb888(TEXSTORE_PARAMS)
             dstRow += dstRowStride;
             srcRow += srcRowStride;
          }
+#endif /* HAVE_PIXMAN */
       }
    }
    else if (!ctx->_ImageTransferState &&
