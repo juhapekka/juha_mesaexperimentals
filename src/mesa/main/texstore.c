@@ -1223,6 +1223,13 @@ _mesa_texstore_rgb565(TEXSTORE_PARAMS)
          _mesa_image_address(dims, srcPacking, srcAddr, srcWidth, srcHeight,
                              srcFormat, srcType, 0, 0, 0);
       GLubyte *dst = dstSlices[0];
+#ifdef HAVE_PIXMAN
+      return pixman_texture_conversion(PIXMAN_r8g8b8, (uint32_t *)src,
+                                       srcRowStride, srcWidth, srcHeight,
+                                       dstFormat == MESA_FORMAT_RGB565?
+                                       PIXMAN_b5g6r5:PIXMAN_r5g6b5,
+                                       (uint32_t *)dst, dstRowStride);
+#else
       GLint row, col;
       for (row = 0; row < srcHeight; row++) {
          const GLubyte *srcUB = (const GLubyte *) src;
@@ -1243,6 +1250,7 @@ _mesa_texstore_rgb565(TEXSTORE_PARAMS)
          dst += dstRowStride;
          src += srcRowStride;
       }
+#endif
    }
    else {
       return store_ubyte_texture(ctx, dims, baseInternalFormat,
