@@ -77,6 +77,10 @@
 #include "../../gallium/auxiliary/util/u_format_r11g11b10f.h"
 
 
+#ifdef HAVE_PIXMAN
+#   include <pixman.h>
+#endif
+
 enum {
    ZERO = 4, 
    ONE = 5
@@ -714,6 +718,107 @@ memcpy_texture(struct gl_context *ctx,
    }
 }
 
+#ifdef HAVE_PIXMAN
+/**
+ * Use Pixman library to copy and convert src image to dst image.
+ * \param srcFormat pixman_format_code_t of the source image.
+ * \param srcBits pointer to source bits.
+ * \param srcStride the length of source stride.
+ * \param width of the source and destination images.
+ * \param height of the source and destination images.
+ * \param dstFormat pixman_format_code_t of the destination image.
+ * \param dstBits pointer to destination bits.
+ * \param dstStride the length of destination stride.
+ * \return GLboolean GL_TRUE if everything ok.
+ */
+static GLboolean
+pixman_texture_conversion(
+        const pixman_format_code_t srcFormat,
+        uint32_t *srcBits, const uint32_t srcStride,
+        const uint16_t width, const uint16_t height,
+        const pixman_format_code_t dstFormat,
+        uint32_t *dstBits, const uint32_t dstStride)
+{
+   pixman_image_t *pixmanImage[2];
+
+   if ((pixmanImage[0] = pixman_image_create_bits_no_clear(srcFormat,
+                                                           width,
+                                                           height,
+                                                           srcBits,
+                                                           srcStride))
+           == NULL)
+      return GL_FALSE;
+
+   /* Assumption source and destination images are same size here.
+    */
+   if ((pixmanImage[1] = pixman_image_create_bits_no_clear(dstFormat,
+                                                           width,
+                                                           height,
+                                                           dstBits,
+                                                           dstStride))
+           == NULL) {
+      pixman_image_unref(pixmanImage[0]);
+      return GL_FALSE;
+   }
+
+   pixman_image_composite(PIXMAN_OP_SRC,
+                          pixmanImage[0],
+                          (pixman_image_t*) NULL,
+                          pixmanImage[1],
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          width,
+                          height);
+
+   pixman_image_unref(pixmanImage[0]);
+   pixman_image_unref(pixmanImage[1]);
+   return GL_TRUE;
+}
+
+
+static GLboolean
+choose_pixman_format(
+        const GLenum texType,
+        const GLenum texFormat,
+        pixman_format_code_t* returnFormat)
+{
+   GLint index;
+
+   const static struct {
+      GLenum                textureType;
+      GLenum                textureFormat;
+      pixman_format_code_t  pixmanformatcode;
+   } pixmanformattable[] = {
+/*
+ * Here is list of Mesa internal formats, these are for dstImage
+ * format choosing with Pixman format conversion. Texture type
+ * set here always to 0 in hope to avoid silly collisions.
+ */
+      { 0, MESA_FORMAT_R8G8B8A8_UNORM, PIXMAN_a8b8g8r8 },
+      { 0, MESA_FORMAT_B8G8R8A8_UNORM, PIXMAN_a8r8g8b8 },
+      { 0, MESA_FORMAT_R8G8B8X8_UNORM, PIXMAN_x8b8g8r8 }
+   };
+
+   if (returnFormat == NULL)
+      return GL_FALSE;
+
+   for (index = 0; index < sizeof(pixmanformattable)/
+        sizeof(pixmanformattable[0]); index++ ) {
+      if (texType == pixmanformattable[index].textureType &&
+          texFormat == pixmanformattable[index].textureFormat) {
+         *returnFormat = pixmanformattable[index].pixmanformatcode;
+
+         return GL_TRUE;
+      }
+   }
+
+   return GL_FALSE;
+}
+#endif /* HAVE_PIXMAN */
 
 /**
  * General-case function for storing a color texture images with
