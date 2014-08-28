@@ -793,6 +793,15 @@ choose_pixman_format(
       GLenum                textureFormat;
       pixman_format_code_t  pixmanformatcode;
    } pixmanformattable[] = {
+      { GL_UNSIGNED_SHORT_5_6_5,        GL_RGB,  PIXMAN_r5g6b5 },
+      { GL_UNSIGNED_SHORT_5_6_5_REV,    GL_RGB,  PIXMAN_b5g6r5 },
+      { GL_UNSIGNED_BYTE,               GL_RGB,  PIXMAN_b8g8r8 },
+      { GL_UNSIGNED_BYTE,               GL_RGBA, PIXMAN_a8b8g8r8 },
+      { GL_UNSIGNED_BYTE,               GL_BGR,  PIXMAN_r8g8b8 },
+      { GL_UNSIGNED_BYTE,               GL_BGRA, PIXMAN_a8b8g8r8 },
+      { GL_UNSIGNED_INT_8_8_8_8,        GL_BGRA, PIXMAN_b8g8r8a8 },
+      { GL_UNSIGNED_INT_8_8_8_8_REV,    GL_BGRA, PIXMAN_a8r8g8b8 },
+      { GL_UNSIGNED_SHORT_4_4_4_4_REV,  GL_BGRA, PIXMAN_a4r4g4b4 },
 /*
  * Here is list of Mesa internal formats, these are for dstImage
  * format choosing with Pixman format conversion. Texture type
@@ -1819,6 +1828,12 @@ texstore_rgba(TEXSTORE_PARAMS)
 {
    static StoreTexImageFunc table[MESA_FORMAT_COUNT];
    static GLboolean initialized = GL_FALSE;
+#ifdef HAVE_PIXMAN
+   GLint img;
+   pixman_format_code_t pixmanformatSrc, pixmanformatDst;
+   GLboolean rval;
+   GLint srcStride;
+#endif
 
    if (!initialized) {
       memset(table, 0, sizeof table);
@@ -1833,6 +1848,30 @@ texstore_rgba(TEXSTORE_PARAMS)
 
       initialized = GL_TRUE;
    }
+
+#ifdef HAVE_PIXMAN
+   if (choose_pixman_format(srcType, srcFormat, &pixmanformatSrc) &&
+           choose_pixman_format(0, dstFormat, &pixmanformatDst)) {
+      srcStride = _mesa_image_row_stride(srcPacking, srcWidth, srcFormat,
+                                         srcType);
+
+      if (srcStride > 0 && (srcStride % sizeof(uint32_t)) == 0
+              && dstRowStride > 0 && !srcPacking->SwapBytes) {
+
+         for (img = 0, rval = GL_TRUE; img < srcDepth && rval; img++) {
+            rval = pixman_texture_conversion(pixmanformatSrc,
+                                             (uint32_t *)srcAddr,
+                                             srcStride,
+                                             srcWidth,
+                                             srcHeight,
+                                             pixmanformatDst,
+                                             (uint32_t *)dstSlices[img],
+                                             dstRowStride);
+         }
+         return rval;
+      }
+   }
+#endif
 
    if (table[dstFormat] && table[dstFormat](ctx, dims, baseInternalFormat,
                                             dstFormat, dstRowStride, dstSlices,
