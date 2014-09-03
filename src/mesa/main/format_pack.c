@@ -111,7 +111,12 @@ static void
 pack_ubyte_R8G8B8A8_UNORM(const GLubyte src[4], void *dst)
 {
    GLuint *d = ((GLuint *) dst);
+#if ((RCOMP == 0) && (GCOMP == 1) && (BCOMP == 2) && (ACOMP == 3) && \
+   (__BYTE_ORDER == __ORDER_LITTLE_ENDIAN__ ))
+    *d = *((GLuint*)(&src[0]));
+#else
    *d = PACK_COLOR_8888(src[ACOMP], src[BCOMP], src[GCOMP], src[RCOMP]);
+#endif
 }
 
 static void
@@ -125,12 +130,17 @@ pack_float_R8G8B8A8_UNORM(const GLfloat src[4], void *dst)
 static void
 pack_row_ubyte_R8G8B8A8_UNORM(GLuint n, const GLubyte src[][4], void *dst)
 {
+#if ((RCOMP == 0) && (GCOMP == 1) && (BCOMP == 2) && (ACOMP == 3) && \
+   (__BYTE_ORDER == __ORDER_LITTLE_ENDIAN__ ))
+    memcpy(dst, (void*)src, n*sizeof(GLuint) );
+#else
    GLuint *d = ((GLuint *) dst);
    GLuint i;
    for (i = 0; i < n; i++) {
       d[i] = PACK_COLOR_8888(src[i][ACOMP], src[i][BCOMP],
                              src[i][GCOMP], src[i][RCOMP]);
    }
+#endif
 }
 
 static void
