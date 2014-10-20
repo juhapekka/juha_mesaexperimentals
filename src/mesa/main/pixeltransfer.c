@@ -90,14 +90,19 @@ _mesa_map_rgba( const struct gl_context *ctx, GLuint n, GLfloat rgba[][4] )
    const GLfloat *aMap = ctx->PixelMaps.AtoA.Map;
    GLuint i;
    for (i=0;i<n;i++) {
-      GLfloat r = CLAMP(rgba[i][RCOMP], 0.0F, 1.0F);
-      GLfloat g = CLAMP(rgba[i][GCOMP], 0.0F, 1.0F);
-      GLfloat b = CLAMP(rgba[i][BCOMP], 0.0F, 1.0F);
-      GLfloat a = CLAMP(rgba[i][ACOMP], 0.0F, 1.0F);
-      rgba[i][RCOMP] = rMap[F_TO_I(r * rscale)];
-      rgba[i][GCOMP] = gMap[F_TO_I(g * gscale)];
-      rgba[i][BCOMP] = bMap[F_TO_I(b * bscale)];
-      rgba[i][ACOMP] = aMap[F_TO_I(a * ascale)];
+      GLfloat rgba_temp[4];
+#ifndef __SSE2__
+      rgba_temp[RCOMP] = CLAMP(rgba[i][RCOMP], 0.0F, 1.0F);
+      rgba_temp[GCOMP] = CLAMP(rgba[i][GCOMP], 0.0F, 1.0F);
+      rgba_temp[BCOMP] = CLAMP(rgba[i][BCOMP], 0.0F, 1.0F);
+      rgba_temp[ACOMP] = CLAMP(rgba[i][ACOMP], 0.0F, 1.0F);
+#else
+      _mesa_clamp4(rgba[i], rgba_temp, 0.0F, 1.0F);
+#endif
+      rgba[i][RCOMP] = rMap[F_TO_I(rgba_temp[RCOMP] * rscale)];
+      rgba[i][GCOMP] = gMap[F_TO_I(rgba_temp[GCOMP] * gscale)];
+      rgba[i][BCOMP] = bMap[F_TO_I(rgba_temp[BCOMP] * bscale)];
+      rgba[i][ACOMP] = aMap[F_TO_I(rgba_temp[ACOMP] * ascale)];
    }
 }
 
@@ -180,10 +185,14 @@ _mesa_apply_rgba_transfer_ops(struct gl_context *ctx, GLbitfield transferOps,
    if (transferOps & IMAGE_CLAMP_BIT) {
       GLuint i;
       for (i = 0; i < n; i++) {
+#ifdef __SSE2__
+          _mesa_clamp4(rgba[i], rgba[i], 0.0F, 1.0F);
+#else
          rgba[i][RCOMP] = CLAMP(rgba[i][RCOMP], 0.0F, 1.0F);
          rgba[i][GCOMP] = CLAMP(rgba[i][GCOMP], 0.0F, 1.0F);
          rgba[i][BCOMP] = CLAMP(rgba[i][BCOMP], 0.0F, 1.0F);
          rgba[i][ACOMP] = CLAMP(rgba[i][ACOMP], 0.0F, 1.0F);
+#endif
       }
    }
 }

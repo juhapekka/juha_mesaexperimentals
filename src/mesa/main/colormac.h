@@ -78,6 +78,29 @@ _mesa_unclamped_float_rgba_to_ubyte(GLubyte dst[4], const GLfloat src[4])
 
 
 /**
+ * Clamp four float values to [min,max]
+ */
+#ifdef __SSE2__
+static inline void
+_mesa_clamp4(GLfloat src[4], GLfloat result[4], const float min,
+                       const float max)
+{
+   __asm__ ( "movups %[source], %%xmm1\n\t"
+             "movss  %[lval], %%xmm0\n\t"
+             "shufps $0, %%xmm0, %%xmm0\n\t"
+             "maxps  %%xmm0, %%xmm1\n\t"
+             "movss  %[hval], %%xmm0\n\t"
+             "shufps $0, %%xmm0, %%xmm0\n\t"
+             "minps  %%xmm0, %%xmm1\n\t"
+             "movups %%xmm1, %[res]\n\t"
+             : [res] "=m"(*result)
+             : [source] "m"(*src), [hval] "m"(max), [lval] "m"(min)
+             : "%xmm0", "%xmm1", "memory" );
+}
+#endif
+
+
+/**
  * \name Generic color packing macros.  All inputs should be GLubytes.
  *
  * \todo We may move these into texstore.h at some point.
