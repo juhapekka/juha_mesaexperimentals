@@ -44,9 +44,36 @@
 static inline void
 _mesa_unclamped_float_rgba_to_ubyte(GLubyte dst[4], const GLfloat src[4])
 {
+#ifndef __SSE2__
    int i;
    for (i = 0; i < 4; i++)
       UNCLAMPED_FLOAT_TO_UBYTE(dst[i], src[i]);
+#else
+    const static float one __attribute__((aligned(16))) = {1.0};
+
+    unsigned int res_a[4] __attribute__((aligned(16)));
+    static const unsigned int x255_a[4] __attribute__((aligned(16))) = \
+                                        {0xff, 0xffff, 0xffffff, 0xffffffff};
+
+    static const unsigned int andplace_a[4] __attribute__((aligned(16))) = \
+                                        {0xff, 0xff00, 0xff0000, 0xff000000};
+
+    __asm__ ( "movups %[source], %%xmm1\n\t"
+              "xorps  %%xmm0, %%xmm0\n\t"
+              "maxss  %%xmm0, %%xmm1\n\t"
+              "movss  %[ones], %%xmm0\n\t"
+              "shufps $0, %%xmm0, %%xmm0\n\t"
+              "minss  %%xmm0, %%xmm1\n\t"
+              "mulps  %[maxbyte], %%xmm1\n\t"
+              "andps  %[mask], %%xmm1\n\t"
+              "movaps %%xmm1, %[res]\n\t"
+              : [res] "=m"(*res_a)
+              : [source] "m"(*src), [ones] "m"(one), \
+                [maxbyte] "m"(*x255_a), [mask] "m"(*andplace_a)
+        : "%xmm0", "%xmm1", "memory" );
+
+    *((unsigned int*)&dst[0]) = res_a[0]|res_a[1]|res_a[2]|res_a[3];
+#endif
 }
 
 
