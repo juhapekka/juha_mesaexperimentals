@@ -104,25 +104,12 @@ add_child(ralloc_header *parent, ralloc_header *info)
 void *
 ralloc_context(const void *ctx)
 {
-   return ralloc_size(ctx, 0);
+   return rzalloc_size(ctx, 0);
 }
 
-void *
-ralloc_size(const void *ctx, size_t size)
+static void*
+ralloc_header_helper(const void *ctx, const void *block)
 {
-   /* ralloc_size was originally implemented using calloc, which meant some
-    * code accidentally relied on its zero filling behavior.
-    *
-    * TODO: Make ralloc_size not zero fill memory, and cleanup any code that
-    * should instead be using rzalloc.
-    */
-   return rzalloc_size(ctx, size);
-}
-
-void *
-rzalloc_size(const void *ctx, size_t size)
-{
-   void *block = calloc(1, size + sizeof(ralloc_header));
    ralloc_header *info;
    ralloc_header *parent;
 
@@ -131,6 +118,12 @@ rzalloc_size(const void *ctx, size_t size)
    info = (ralloc_header *) block;
    parent = ctx != NULL ? get_header(ctx) : NULL;
 
+   info->child = NULL;
+   info->parent = NULL;
+   info->prev = NULL;
+   info->next = NULL;
+   info->destructor = NULL;
+
    add_child(parent, info);
 
 #ifdef DEBUG
@@ -138,6 +131,30 @@ rzalloc_size(const void *ctx, size_t size)
 #endif
 
    return PTR_FROM_HEADER(info);
+}
+
+void *
+ralloc_size(const void *ctx, size_t size)
+{
+   void *block;
+
+   if (size + sizeof(ralloc_header) < size )
+      return NULL;
+
+   block = malloc(size + sizeof(ralloc_header));
+   return ralloc_header_helper(ctx, block);
+}
+
+void *
+rzalloc_size(const void *ctx, size_t size)
+{
+   void *block;
+
+   if (size + sizeof(ralloc_header) < size )
+      return NULL;
+
+   block = calloc(1, size + sizeof(ralloc_header));
+   return ralloc_header_helper(ctx, block);
 }
 
 /* helper function - assumes ptr != NULL */
