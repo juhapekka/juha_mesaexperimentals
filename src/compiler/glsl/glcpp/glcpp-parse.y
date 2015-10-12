@@ -1344,7 +1344,7 @@ glcpp_parser_create(glcpp_extension_iterator extensions, void *state, gl_api api
 {
    glcpp_parser_t *parser;
 
-   parser = ralloc (NULL, glcpp_parser_t);
+   parser = rzalloc (NULL, glcpp_parser_t);
 
    glcpp_lex_init_extra (parser, &parser->scanner);
    parser->defines = _mesa_hash_table_create(NULL, _mesa_key_hash_string,
@@ -1889,7 +1889,7 @@ _parser_active_list_push(glcpp_parser_t *parser, const char *identifier,
 {
    active_list_t *node;
 
-   node = ralloc(parser->active, active_list_t);
+   node = rzalloc(parser->active, active_list_t);
    node->identifier = ralloc_strdup(node, identifier);
    node->marker = marker;
    node->next = parser->active;
