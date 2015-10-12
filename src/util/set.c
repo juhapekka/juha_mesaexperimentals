@@ -110,7 +110,7 @@ _mesa_set_create(void *mem_ctx,
 {
    struct set *ht;
 
-   ht = ralloc(mem_ctx, struct set);
+   ht = rzalloc(mem_ctx, struct set);
    if (ht == NULL)
       return NULL;
 
