@@ -117,7 +117,7 @@ _mesa_hash_table_create(void *mem_ctx,
 {
    struct hash_table *ht;
 
-   ht = ralloc(mem_ctx, struct hash_table);
+   ht = rzalloc(mem_ctx, struct hash_table);
    if (ht == NULL)
       return NULL;
 
